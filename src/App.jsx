@@ -594,11 +594,8 @@ CRITICAL: Your FINAL message must be ONLY valid JSON — no markdown, no backtic
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "mistral-large-latest",
-      max_tokens: 4096,
-      messages: [
-        { role: "user", content: `${systemPrompt}\n\nResearch question: ${question}${contextLine ? `\n\n${contextLine}` : ""}` }
-      ]
+      messages: [{ role: "user", content: `Research question: ${question}${contextLine ? `\n\n${contextLine}` : ""}` }],
+      system: systemPrompt
     })
   });
 
@@ -617,7 +614,6 @@ CRITICAL: Your FINAL message must be ONLY valid JSON — no markdown, no backtic
   }
   if (data.error) throw new Error(data.error.message || "API error");
 
-  // Mistral uses choices[0].message.content format
   const content = data.choices?.[0]?.message?.content || "";
   
   let raw = content.trim().replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim();
