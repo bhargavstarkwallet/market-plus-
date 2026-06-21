@@ -550,35 +550,25 @@ async function generateReport(question, context = {}) {
     industry ? `Industry vertical: ${industry}` : null,
   ].filter(Boolean).join("\n");
 
-  const res = await fetch("/api/chat", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-6",
-      max_tokens: 6500,
-      tools: [{ type: "web_search_20250305", name: "web_search" }],
-      system: `You are MarketPulse AI — a senior market research analyst specializing in fundraising-stage research for Indian startup founders, with deep expertise in Indian fintech, edtech, and consumer-tech regulation (RBI, SEBI, UIDAI, NPCI, DPDP Act, MeitY).
-
-Use web search to ground your numbers in current, real data before writing the report — do not rely solely on prior knowledge for market sizing, competitor funding, or regulatory status, since these change frequently.
+  const systemPrompt = `You are MarketPulse AI — a senior market research analyst specializing in fundraising-stage research for Indian startup founders, with deep expertise in Indian fintech, edtech, and consumer-tech regulation (RBI, SEBI, UIDAI, NPCI, DPDP Act, MeitY).
 
 Given a research question, produce a comprehensive market research report formatted the way an investor expects to see it, with supporting chart data.
 
-CRITICAL: Your FINAL message must be ONLY valid JSON — no markdown, no backticks, no explanation before or after. Exactly this structure:
+CRITICAL: Your FINAL message must be ONLY valid JSON — no markdown, no backticks, no explanation before or after. Use this exact structure:
 {
   "title": "Specific report title",
   "confidence": "High",
   "summary": "2-3 sentence executive summary with the single most important number or finding",
-  "keyTakeaways": ["Most important finding, one punchy sentence", "Second finding", "Third finding", "Fourth finding"],
+  "keyTakeaways": ["Finding 1", "Finding 2", "Finding 3", "Finding 4"],
   "tamSamSom": {
-    "tam": {"valueUsdBn": 4.5, "note": "short description of total addressable market"},
-    "sam": {"valueUsdBn": 1.8, "note": "short description of serviceable addressable market"},
-    "som": {"valueUsdBn": 0.3, "note": "short description of realistic 3-5yr obtainable share"}
+    "tam": {"valueUsdBn": 4.5, "note": "description"},
+    "sam": {"valueUsdBn": 1.8, "note": "description"},
+    "som": {"valueUsdBn": 0.3, "note": "description"}
   },
   "competitors": [
-    {"name": "Real company name", "marketSharePct": 28, "strategy": "One short clause on their core strategy"},
-    {"name": "Real company name", "marketSharePct": 19, "strategy": "One short clause"},
-    {"name": "Real company name", "marketSharePct": 12, "strategy": "One short clause"},
-    {"name": "Others / long tail", "marketSharePct": 41, "strategy": "Fragmented regional and niche players"}
+    {"name": "Company 1", "marketSharePct": 28, "strategy": "Strategy"},
+    {"name": "Company 2", "marketSharePct": 19, "strategy": "Strategy"},
+    {"name": "Others", "marketSharePct": 53, "strategy": "Fragmented"}
   ],
   "financials": [
     {"year": "2026", "revenueUsdM": 50, "costsUsdM": 38, "profitUsdM": 12},
@@ -587,43 +577,50 @@ CRITICAL: Your FINAL message must be ONLY valid JSON — no markdown, no backtic
     {"year": "2029", "revenueUsdM": 130, "costsUsdM": 84, "profitUsdM": 46}
   ],
   "regulatory": [
-    {"authority": "RBI", "requirement": "short description of the compliance requirement", "impact": "High"},
-    {"authority": "SEBI", "requirement": "short description", "impact": "Medium"},
-    {"authority": "DPDP Act", "requirement": "short description", "impact": "Medium"}
+    {"authority": "RBI", "requirement": "description", "impact": "High"}
   ],
   "sections": [
-    {"heading": "Market Size & TAM", "content": "3-4 sentence paragraph with specific numbers in INR and USD", "bullets": ["point 1 with data", "point 2 with data", "point 3 with data"]},
-    {"heading": "Key Players & Competitive Landscape", "content": "paragraph naming real companies and their positions", "bullets": ["competitor 1 with market share or funding", "competitor 2", "competitor 3"]},
-    {"heading": "Growth Drivers & Tailwinds", "content": "paragraph on macro and micro drivers", "bullets": ["driver 1", "driver 2", "driver 3"]},
-    {"heading": "Risks & Headwinds", "content": "honest risk assessment", "bullets": ["risk 1", "risk 2", "risk 3"]},
-    {"heading": "3-Year Outlook (2026-2029)", "content": "forward-looking projections with specific numbers", "bullets": ["projection 1", "projection 2", "projection 3"]},
-    {"heading": "Strategic Opportunities", "content": "actionable opportunities for startups or investors", "bullets": ["opportunity 1", "opportunity 2", "opportunity 3"]}
+    {"heading": "Market Size", "content": "paragraph", "bullets": ["point 1", "point 2"]},
+    {"heading": "Competitors", "content": "paragraph", "bullets": ["competitor 1"]},
+    {"heading": "Growth Drivers", "content": "paragraph", "bullets": ["driver 1"]},
+    {"heading": "Risks", "content": "paragraph", "bullets": ["risk 1"]},
+    {"heading": "Outlook", "content": "paragraph", "bullets": ["projection 1"]},
+    {"heading": "Opportunities", "content": "paragraph", "bullets": ["opportunity 1"]}
   ],
-  "sources": ["Source 1 (year)", "Source 2 (year)", "Source 3 (year)", "Source 4 (year)", "Source 5 (year)"]
-}
+  "sources": ["Source 1", "Source 2", "Source 3", "Source 4", "Source 5"]
+}`;
 
-Rules:
-- "confidence" must be exactly one of: "High", "Medium", "Low" — calibrate it honestly based on how much current data search actually surfaced.
-- "keyTakeaways": exactly 4 items, each a single standalone sentence a founder could repeat in a pitch.
-- "tamSamSom": som.valueUsdBn < sam.valueUsdBn <= tam.valueUsdBn, all in US$ billions, numeric only.
-- "competitors": 3-5 real named players plus one "Others" bucket; marketSharePct values are numbers 0-100 and should roughly sum to 100. Prefer current funding/market-share data found via search over memory.
-- "financials": exactly 4 years, numeric USD millions only — illustrative segment-level economics, not a real company's disclosed financials, and label it as such in tone.
-- "regulatory": 3-5 entries naming real Indian regulators or laws that genuinely apply to this question (RBI, SEBI, IRDAI, UIDAI, NPCI, DPDP Act, MeitY, FSSAI, etc.) — omit ones that don't apply rather than padding the list. "impact" must be exactly High, Medium, or Low.
-- Be specific everywhere: real companies, real numbers, real current events. Chart fields must be single numbers, never strings or ranges.`,
-      messages: [{ role: "user", content: `Research question: ${question}${contextLine ? `\n\n${contextLine}` : ""}` }]
+  const res = await fetch("/api/chat", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      model: "mistral-large-latest",
+      max_tokens: 4096,
+      messages: [
+        { role: "user", content: `${systemPrompt}\n\nResearch question: ${question}${contextLine ? `\n\n${contextLine}` : ""}` }
+      ]
     })
   });
 
-  const data = await res.json();
+  const text = await res.text();
+  console.log("[generateReport] Response status:", res.status);
+  console.log("[generateReport] Response text length:", text?.length);
+  
+  if (!text) throw new Error("EMPTY_RESPONSE");
+
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch (e) {
+    console.error("Unparsable response from /api/chat:", text);
+    throw new Error("PARSE_FAIL");
+  }
   if (data.error) throw new Error(data.error.message || "API error");
 
-  // With web search enabled, content may include multiple blocks (search calls,
-  // search results, and one or more text blocks). The final text block holds
-  // the synthesized JSON answer.
-  const textBlocks = (data.content || []).filter(b => b.type === "text");
-  const textBlock = textBlocks.length ? textBlocks[textBlocks.length - 1].text : "";
-
-  let raw = textBlock.trim().replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim();
+  // Mistral uses choices[0].message.content format
+  const content = data.choices?.[0]?.message?.content || "";
+  
+  let raw = content.trim().replace(/^```(?:json)?\n?/, "").replace(/\n?```$/, "").trim();
   const firstBrace = raw.indexOf("{");
   const lastBrace = raw.lastIndexOf("}");
   if (firstBrace !== -1 && lastBrace !== -1) raw = raw.substring(firstBrace, lastBrace + 1);
